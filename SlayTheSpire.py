@@ -153,6 +153,70 @@ print(f"\nEnemy appears: {enemy}")
 #Start turn
 player.start_turn()
 
+while not player.is_dead() and not enemy.is_dead():
+    player.start_turn()
+
+    print("\nYour Hand:")
+    for i, card in enumerate(player.hand):
+        print(f"{i+1}.")
+        card.display()
+
+    while True:
+        if not player.hand:
+            print("No cards left in hand!")
+            break
+
+        print("\nChoose a card to play (1 to", len(player.hand, "or 0 to end turn):"))
+        for i, card in enumerate(player.hand):
+            print(f"{i+1}. {card.name} (Cost: {card.energy_cost})")
+
+        try:
+            choice = int(input(" ")) -1
+
+            if choice == -1:
+                print("Ending turn.")
+                break
+
+            player.play_card(choice,enemy)
+
+            if enemy.is_dead():
+                print(f"{enemy.nae} has been defeated!")
+                break
+
+            if player.energy == 0:
+                print("No energy left.")
+                break
+
+        except (ValueError, IndexError):
+            print("Invalid input. Please enter a number corresponding to a card.")
+
+    if enemy.is_dead():
+        break
+
+    #Enemy's turn
+
+    print(f"\n --- {enemy.name}'s Turn ---")
+    enemy.attack(player)
+
+    #End of Turn Cleanup
+    player.discard_pile.extend(player.hand)
+    player.hand.clear()
+    print("End of turn. Discarded hand.")
+    
+#Battle Result
+if player.is_dead():
+    print(f"\n{player.name} has been defeated. Game over.")
+else:
+    print(f"\nVictory! {enemy.name} was defeated.")
+
+
+
+
+
+
+
+
+"""
 print("\nYour Hand:")
 for i, card in enumerate(player.hand):
     print(f"{i+1}.")
@@ -185,10 +249,11 @@ while True:
     except (ValueError, IndexError):
         print("Invalid input. Please enter a number corresponding to a card.")
 
-if not enemy.is_dead:
+if not enemy.is_dead():
     enemy.attack(player)
 
 
 player.discard_pile.extend(player.hand)
 player.hand.clear()
 print("\nEnd of turn, discarded hand")
+"""
