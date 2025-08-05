@@ -37,7 +37,7 @@ class Enemy:
             damage = max(amount - self.block, 0)
             self.block = max(self.block - amount, 0)
             self.health -= damage
-            print(f"{self.name} took {damage}damage! Remaining HP: {self.health}/{self.max_health}")
+            print(f"{self.name} took {damage} damage! Remaining HP: {self.health}/{self.max_health}")
 
         def attack(self, player):
             print(f"{self.name } attacks for {self.base_damage} damage!")
@@ -90,9 +90,9 @@ class Player:
         for i in range(num):
             if not self.draw_pile:
                 self.shuffle_discard_into_draw()
-                if not self.draw_pile:
-                    print("No cards left to draw!")
-                    return
+            if not self.draw_pile:
+                print("No cards left to draw!")
+                break
             self.hand.append(self.draw_pile.pop())
     
     def shuffle_discard_into_draw(self):
@@ -150,8 +150,7 @@ floor = 1
 enemy = random_enemy(floor)
 print(f"\nEnemy appears: {enemy}")
 
-#Start turn
-player.start_turn()
+
 
 while not player.is_dead() and not enemy.is_dead():
     player.start_turn()
@@ -166,7 +165,7 @@ while not player.is_dead() and not enemy.is_dead():
             print("No cards left in hand!")
             break
 
-        print("\nChoose a card to play (1 to", len(player.hand, "or 0 to end turn):"))
+        print(f"\nChoose a card to play (1 to {len(player.hand)} or 0 to end turn):")
         for i, card in enumerate(player.hand):
             print(f"{i+1}. {card.name} (Cost: {card.energy_cost})")
 
@@ -180,7 +179,7 @@ while not player.is_dead() and not enemy.is_dead():
             player.play_card(choice,enemy)
 
             if enemy.is_dead():
-                print(f"{enemy.nae} has been defeated!")
+                print(f"{enemy.name} has been defeated!")
                 break
 
             if player.energy == 0:
@@ -202,7 +201,10 @@ while not player.is_dead() and not enemy.is_dead():
     player.discard_pile.extend(player.hand)
     player.hand.clear()
     print("End of turn. Discarded hand.")
-    
+
+#Start turn
+player.start_turn()    
+
 #Battle Result
 if player.is_dead():
     print(f"\n{player.name} has been defeated. Game over.")
