@@ -27,18 +27,22 @@ class Player:
         for _ in range(n):
             if not self.draw_pile:
                 if not self.discard_pile:
-                    return  # nothing to draw
+                    return
                 self.draw_pile = self.discard_pile[:]
                 self.discard_pile.clear()
                 random.shuffle(self.draw_pile)
             self.hand.append(self.draw_pile.pop())
 
 class Enemy:
-    def __init__(self, name, hp):
+    def __init__(self, name, hp, moves):
         self.name = name
         self.hp = hp
         self.block = 0
+        self.moves = moves  # list of dicts: {"name": str, "damage": int, "block": int}
         self.intent = None
+
+    def choose_intent(self):
+        self.intent = random.choice(self.moves)
 
 class Combat:
     def __init__(self, player, enemy):
@@ -60,7 +64,8 @@ class Combat:
 
     def player_play_phase(self, log):
         while self.player.energy > 0 and self.player.hand:
-            print("\nYour hand:")
+            print(f"\n{self.enemy.name} intends to: {self.enemy.intent['name']} ({self.enemy.intent['damage']} dmg, {self.enemy.intent['block']} block)")
+            print("Your hand:")
             for i, card in enumerate(self.player.hand):
                 print(f"{i}: {card.name} (Cost: {card.cost}, Dmg: {card.damage}, Block: {card.block})")
             print(f"Energy: {self.player.energy}")
@@ -78,16 +83,22 @@ class Combat:
 
     def start(self, log):
         while self.player.hp > 0 and self.enemy.hp > 0:
+            self.enemy.choose_intent()
             self.player.energy = 3
             self.player.block = 0
             self.player.draw(5)
             self.player_play_phase(log)
             if self.enemy.hp <= 0:
                 break
-            dmg = random.randint(5,10)
-            dmg_done = max(0, dmg - self.player.block)
-            self.player.hp -= dmg_done
-            log(f"{self.enemy.name} attacks for {dmg}, you take {dmg_done}!")
+            dmg = self.enemy.intent['damage']
+            blk = self.enemy.intent['block']
+            if blk:
+                self.enemy.block += blk
+                log(f"{self.enemy.name} gains {blk} block!")
+            if dmg:
+                dmg_done = max(0, dmg - self.player.block)
+                self.player.hp -= dmg_done
+                log(f"{self.enemy.name} attacks for {dmg}, you take {dmg_done}!")
             self.player.hand.clear()
             self.player.block = 0
         return self.player.hp > 0
@@ -149,7 +160,12 @@ class Run:
             self.log(f"-- Floor {floor} --")
             encounter = random.choice(["combat", "event", "rest"])
             if encounter == "combat":
-                enemy = Enemy("Slime", 30)
+                moves = [
+                    {"name": "Tackle", "damage": 7, "block": 0},
+                    {"name": "Guard", "damage": 0, "block": 5},
+                    {"name": "Smash", "damage": 10, "block": 0}
+                ]
+                enemy = Enemy("Slime", 30, moves)
                 combat = Combat(self.player, enemy)
                 win = combat.start(self.log)
                 if not win:
@@ -164,4 +180,3 @@ class Run:
 
 if __name__ == "__main__":
     Run().start()
-```
