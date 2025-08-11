@@ -132,22 +132,36 @@ class Combat:
 class Run:
     def __init__(self):
         self.player = Player()
+        self.floor = 1
 
     def log(self, msg):
         print(msg)
 
     def start(self):
-        enemy = Enemy("Slime", 30, [
-            {"name": "Tackle", "damage": 6, "block": 0},
-            {"name": "Harden", "damage": 0, "block": 5}
-        ])
-        combat = Combat(self.player, enemy)
-        win = combat.start(self.log)
-        if win:
+        while True:
+            print(f"\n--- Floor {self.floor} ---")
+            enemy_hp = 30 + (self.floor - 1) * 5
+            enemy_moves = [
+                {"name": "Tackle", "damage": 6 + (self.floor - 1) * 2, "block": 0},
+                {"name": "Harden", "damage": 0, "block": 5 + (self.floor - 1) * 2}
+            ]
+            enemy = Enemy("Slime", enemy_hp, enemy_moves)
+            combat = Combat(self.player, enemy)
+            win = combat.start(self.log)
+
+            if not win:
+                print("You were defeated!")
+                break
+
             print("You won!")
             self.player.add_card_choice()
-        else:
-            print("You were defeated!")
+
+            cont = input("Continue to next floor? (y/n): ").strip().lower()
+            if cont != 'y':
+                print("Run ended.")
+                break
+
+            self.floor += 1
 
 if __name__ == "__main__":
     Run().start()
