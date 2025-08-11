@@ -1,7 +1,8 @@
-import random, copy
+import random
+import copy
 
-def clamp(val, minv, maxv):
-    return max(minv, min(val, maxv))
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
 
 class Card:
     def __init__(self, name, cost, damage=0, block=0):
@@ -12,60 +13,66 @@ class Card:
 
 class Player:
     def __init__(self):
-        self.max_hp = 80
-        self.hp = self.max_hp
+        self.max_hp = 50
+        self.hp = 50
         self.energy = 3
         self.block = 0
-        self.gold = 0
         self.deck = [Card("Strike", 1, damage=6) for _ in range(5)] + [Card("Defend", 1, block=5) for _ in range(5)]
         self.hand = []
+        self.discard_pile = []
         self.draw_pile = copy.deepcopy(self.deck)
         random.shuffle(self.draw_pile)
-        self.discard_pile = []
+        self.gold = 0
 
-    def draw(self, n):
-        for _ in range(n):
+    def draw(self, num):
+        for _ in range(num):
             if not self.draw_pile:
-                if not self.discard_pile:
-                    return
-                self.draw_pile = self.discard_pile[:]
-                self.discard_pile.clear()
+                self.draw_pile = self.discard_pile
+                self.discard_pile = []
                 random.shuffle(self.draw_pile)
-            self.hand.append(self.draw_pile.pop())
+            if self.draw_pile:
+                self.hand.append(self.draw_pile.pop())
+
+    def add_card_choice(self):
+        possible_cards = [
+            Card("Bash", 2, damage=8),
+            Card("Iron Wave", 1, damage=5, block=5),
+            Card("Clash", 0, damage=14)
+        ]
+        print("\nChoose a card to add to your deck:")
+        for i, c in enumerate(possible_cards):
+            print(f"{i}: {c.name} (Cost: {c.cost}, Dmg: {c.damage}, Block: {c.block})")
+        choice = None
+        while choice is None:
+            sel = input("Enter card number: ").strip()
+            if sel.isdigit() and int(sel) in range(len(possible_cards)):
+                choice = possible_cards[int(sel)]
+            else:
+                print("Invalid choice.")
+        self.deck.append(choice)
+        self.discard_pile.append(choice)
+        print(f"Added {choice.name} to your deck!")
 
 class Enemy:
-    def __init__(self, name, hp, moves):
+    def __init__(self, name, hp, intents):
         self.name = name
         self.hp = hp
         self.block = 0
-        self.moves = moves  # list of dicts: {"name": str, "damage": int, "block": int}
+        self.intents = intents
         self.intent = None
 
     def choose_intent(self):
-        self.intent = random.choice(self.moves)
+        self.intent = random.choice(self.intents)
 
 class Combat:
     def __init__(self, player, enemy):
         self.player = player
         self.enemy = enemy
 
-    def play_card(self, card, log):
-        self.player.energy -= card.cost
-        if card.damage:
-            dmg = max(0, card.damage - self.enemy.block)
-            self.enemy.block = max(0, self.enemy.block - card.damage)
-            self.enemy.hp -= dmg
-            log(f"You hit {self.enemy.name} for {dmg}!")
-        if card.block:
-            self.player.block += card.block
-            log(f"You gain {card.block} block!")
-        self.player.hand.remove(card)
-        self.player.discard_pile.append(card)
-
     def player_play_phase(self, log):
         while self.player.energy > 0 and self.player.hand:
-            print(f"\n{self.enemy.name} intends to: {self.enemy.intent['name']} ({self.enemy.intent['damage']} dmg, {self.enemy.intent['block']} block)")
-            print("Your hand:")
+            print(f"\n{self.enemy.name} intends to: {self.enemy.intent['name']} (Damage: {self.enemy.intent['damage']}, Block: {self.enemy.intent['block']})")
+            print("\nYour hand:")
             for i, card in enumerate(self.player.hand):
                 print(f"{i}: {card.name} (Cost: {card.cost}, Dmg: {card.damage}, Block: {card.block})")
             print(f"Energy: {self.player.energy}")
@@ -81,15 +88,33 @@ class Combat:
                 continue
             self.play_card(card, log)
 
+    def play_card(self, card, log):
+        self.player.energy -= card.cost
+        if card.damage:
+            dmg_done = max(0, card.damage - self.enemy.block)
+            self.enemy.block = max(0, self.enemy.block - card.damage)
+            self.enemy.hp -= dmg_done
+            log(f"You use {card.name}, dealing {dmg_done} damage!")
+        if card.block:
+            self.player.block += card.block
+            log(f"You gain {card.block} block!")
+        self.player.hand.remove(card)
+        self.player.discard_pile.append(card)
+
     def start(self, log):
         while self.player.hp > 0 and self.enemy.hp > 0:
             self.enemy.choose_intent()
+            log(f"{self.enemy.name} intends to: {self.enemy.intent['name']} (Damage: {self.enemy.intent['damage']}, Block: {self.enemy.intent['block']})")
+
             self.player.energy = 3
             self.player.block = 0
             self.player.draw(5)
+
             self.player_play_phase(log)
+
             if self.enemy.hp <= 0:
                 break
+
             dmg = self.enemy.intent['damage']
             blk = self.enemy.intent['block']
             if blk:
@@ -99,6 +124,7 @@ class Combat:
                 dmg_done = max(0, dmg - self.player.block)
                 self.player.hp -= dmg_done
                 log(f"{self.enemy.name} attacks for {dmg}, you take {dmg_done}!")
+
             self.player.hand.clear()
             self.player.block = 0
         return self.player.hp > 0
@@ -106,77 +132,22 @@ class Combat:
 class Run:
     def __init__(self):
         self.player = Player()
-        self.log = print
 
-    def event_interaction(self):
-        self.log('Event: Mysterious event occurs...')
-        print("0: Gain gold\n1: Lose HP\n2: Gain a card\n3: Gain a curse")
-        while True:
-            choice = input("Your choice: ").strip()
-            if choice in ('0','1','2','3'):
-                choice = int(choice)
-                break
-            print("Invalid choice.")
-        if choice == 0:
-            g = random.randint(10,50)
-            self.player.gold += g
-            self.log(f'Gained {g} gold from event')
-        elif choice == 1:
-            dmg = random.randint(3,12)
-            self.player.hp -= dmg
-            self.log(f'Lost {dmg} HP in event')
-        elif choice == 2:
-            c = copy.deepcopy(random.choice([Card("Bash", 2, damage=8), Card("Shield", 1, block=8)]))
-            self.player.discard_pile.append(c)
-            self.log(f'Found a card: {c.name}')
-        elif choice == 3:
-            c = Card("Curse", 0)
-            self.player.discard_pile.append(c)
-            self.log(f'Gained curse: {c.name}')
-
-    def rest_interaction(self):
-        self.log('Rest Site:')
-        print("0: Rest (heal)\n1: Upgrade a random card")
-        while True:
-            choice = input("Your choice: ").strip()
-            if choice in ('0','1'):
-                choice = int(choice)
-                break
-            print("Invalid choice.")
-        if choice == 0:
-            heal = random.randint(6,12)
-            self.player.hp = clamp(self.player.hp + heal, 0, self.player.max_hp)
-            self.log(f'Rested and healed {heal}')
-        else:
-            if self.player.deck:
-                card = random.choice(self.player.deck)
-                card.damage += 2
-                card.block += 2
-                self.log(f'Upgraded {card.name} (+2 dmg/block)')
+    def log(self, msg):
+        print(msg)
 
     def start(self):
-        self.log("Starting run!")
-        for floor in range(1, 6):
-            self.log(f"-- Floor {floor} --")
-            encounter = random.choice(["combat", "event", "rest"])
-            if encounter == "combat":
-                moves = [
-                    {"name": "Tackle", "damage": 7, "block": 0},
-                    {"name": "Guard", "damage": 0, "block": 5},
-                    {"name": "Smash", "damage": 10, "block": 0}
-                ]
-                enemy = Enemy("Slime", 30, moves)
-                combat = Combat(self.player, enemy)
-                win = combat.start(self.log)
-                if not win:
-                    self.log("You died!")
-                    return
-                self.log("Victory!")
-            elif encounter == "event":
-                self.event_interaction()
-            elif encounter == "rest":
-                self.rest_interaction()
-        self.log("Run complete!")
+        enemy = Enemy("Slime", 30, [
+            {"name": "Tackle", "damage": 6, "block": 0},
+            {"name": "Harden", "damage": 0, "block": 5}
+        ])
+        combat = Combat(self.player, enemy)
+        win = combat.start(self.log)
+        if win:
+            print("You won!")
+            self.player.add_card_choice()
+        else:
+            print("You were defeated!")
 
 if __name__ == "__main__":
     Run().start()
